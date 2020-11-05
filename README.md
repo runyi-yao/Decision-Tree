@@ -8,6 +8,7 @@
   if __name__ == '__main__':
    #### 获取数据集
    dataSet, labels = getDataSet()
+   
    featLabels = []
    #### 创建 ID3 决策树
    myTree = createTree(dataSet, labels, featLabels)
