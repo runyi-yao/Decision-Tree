@@ -13,15 +13,19 @@ arrow_args = dict(arrowstyle="<-")
 def getDataSet():
     # 数据预处理
     data = pd.read_csv("diabetes_data_upload.csv")
+    # 去掉Age列
     data = data.drop(columns=['Age'], axis=1)
+    # 将所有No/Yes分别转换为0/1，便于后面决策树的创建
     data['Gender'][data["Gender"] == 'Male'] = 1
     data['Gender'][data["Gender"] == 'Female'] = 0
     for i in data.columns:
         data[i][data[i] == 'No'] = 0
         data[i][data[i] == 'Yes'] = 1
+    # 取前410个数据作为测试数据（共520个）
     data = data[:][:410]
     # print(data.shape)
     dataSet = data.values.tolist()
+    # 属性标签
     labels = ['Gender','Polyuria', 'Polydipsia', 'sudden weight loss','weakness','Polyphagia','Genital thrush', 'visual blurring','Itching',
               'Irritability','delayed healing', 'partial paresis', 'muscle stiffness','Alopecia','Obesity']
     return dataSet, labels
@@ -37,29 +41,29 @@ def majorityCnt(classList):
     return sortedClassCount[0][0]
 
 # 计算数据集的香农熵
-def calcShannonEnt(dataSet):
-    numEntires = len(dataSet)
-    labelCounts = {}
-    for featVec in dataSet:
-        currentLabel = featVec[-1]
-        if currentLabel not in labelCounts.keys():
+def calcShannonEnt(dataSet): 
+    numEntires = len(dataSet)  #返回数据集的行数
+    labelCounts = {}    #保存每个标签(Label)出现次数的字典
+    for featVec in dataSet: #对每组特征向量进行统计
+        currentLabel = featVec[-1] #提取标签(Label)信息
+        if currentLabel not in labelCounts.keys(): #如果标签(Label)没有放入统计次数的字典,添加进去
             labelCounts[currentLabel] = 0
-        labelCounts[currentLabel] += 1
-        shannonEnt = 0.0
-        for key in labelCounts:
-            prob = float(labelCounts[key]) / numEntires
-            shannonEnt -= prob * log(prob, 2)
-    return shannonEnt
+        labelCounts[currentLabel] += 1 #Label计数
+        shannonEnt = 0.0                 #经验熵(香农熵)
+        for key in labelCounts:      #计算香农熵
+            prob = float(labelCounts[key]) / numEntires        #选择该标签(Label)的概率
+            shannonEnt -= prob * log(prob, 2)                    #利用公式计算
+    return shannonEnt                                   #返回经验熵(香农熵)
 
 # 按照给定特征划分数据集
 def splitDataSet(dataSet, axis, value):
-    retDataSet = []
-    for featVec in dataSet:
+    retDataSet = []                  #创建返回的数据集列表
+    for featVec in dataSet:          #遍历数据集
         if featVec[axis] == value:
-            reducedFeatVec = featVec[:axis]
-            reducedFeatVec.extend(featVec[axis+1:])
+            reducedFeatVec = featVec[:axis]      #去掉axis特征
+            reducedFeatVec.extend(featVec[axis+1:])      #将符合条件的添加到返回的数据集
             retDataSet.append(reducedFeatVec)
-    return retDataSet
+    return retDataSet            #返回划分后的数据集
 
 # 获取最优特征值
 def chooseBestFeatureToSplit(dataSet):
@@ -69,11 +73,12 @@ def chooseBestFeatureToSplit(dataSet):
     bestInfoGain = 0.0  # 信息增益
     bestFeature = -1
     for i in range(numFeature):
+        #获取dataSet的第i个所有特征
         featList = [example[i] for example in dataSet]
-        uniqueVals = set(featList)
-        newEntropy = 0.0
-        for value in uniqueVals:
-            subDataSet = splitDataSet(dataSet, i, value)
+        uniqueVals = set(featList)        #创建set集合{},元素不可重复
+        newEntropy = 0.0                #经验条件熵
+        for value in uniqueVals:          #计算信息增益
+            subDataSet = splitDataSet(dataSet, i, value)       #subDataSet划分后的子集
             prob = len(subDataSet) / float(len(dataSet))  # 计算子集的概率
             newEntropy += prob * calcShannonEnt(subDataSet)  # 根据公式计算经验条件熵
         infoGain = baseEntropy - newEntropy  # 信息增益
@@ -85,26 +90,27 @@ def chooseBestFeatureToSplit(dataSet):
 
 # 创建决策树
 def createTree(dataSet, labels, featLabels):
-    classList = [example[-1] for example in dataSet]
+    classList = [example[-1] for example in dataSet]    #取分类标签(是否患糖尿病:positive or negative)
     # print(classList)
-    if classList.count(classList[0]) == len(classList):
-        return classList[0]
-    if len(dataSet[0]) == 1 or len(labels) == 0:
+    if classList.count(classList[0]) == len(classList):       #如果类别完全相同则停止继续划分
+        return classList[0] 
+    if len(dataSet[0]) == 1 or len(labels) == 0:              #遍历完所有特征时返回出现次数最多的类标签 
         return majorityCnt(classList)
-    bestFeat = chooseBestFeatureToSplit(dataSet)
+    bestFeat = chooseBestFeatureToSplit(dataSet)                  #选择最优特征
     # print(bestFeat)
     bestFeatLabel = labels[bestFeat]
     featLabels.append(bestFeatLabel)
-    myTree = {bestFeatLabel:{}}
-    del(labels[bestFeat])
-    featValues = [example[bestFeat] for example in dataSet]
-    uniqueVals = set(featValues)
+    myTree = {bestFeatLabel:{}}                            #根据最优特征的标签生成树
+    del(labels[bestFeat])                                  #删除已经使用特征标签
+    featValues = [example[bestFeat] for example in dataSet]        #得到训练集中所有最优特征的属性值
+    uniqueVals = set(featValues)                           #去掉重复的属性值
     # print(uniqueVals)
-    for value in uniqueVals:
+    for value in uniqueVals:                                #遍历特征，创建决策树。
         subLabels = labels[:]
         myTree[bestFeatLabel][value] = createTree(splitDataSet(dataSet, bestFeat, value), subLabels, featLabels)
     return myTree
 
+# 绘制结点
 def plotNode(nodeTxt, centerPt, parentPt, nodeType):
     createPlot.ax1.annotate(nodeTxt, xy=parentPt, xycoords='axes fraction', \
                             xytext=centerPt, textcoords='axes fraction', \
@@ -135,12 +141,13 @@ def getTreeDepth(myTree):
         if thisDepth > maxDepth:
             maxDepth = thisDepth
     return maxDepth
-
+# 标注有向边属性值
 def plotMidText(cntrPt, parentPt, txtString):
     xMid = (parentPt[0] - cntrPt[0]) / 2.0 + cntrPt[0]
     yMid = (parentPt[1] - cntrPt[1]) / 2.0 + cntrPt[1]
     createPlot.ax1.text(xMid, yMid, txtString)
 
+# 绘制决策树
 def plotTree(myTree, parentPt, nodeTxt):
     numLeafs = getNumLeafs(myTree)  # 树的叶子数量
     depth = getTreeDepth(myTree)  # 树的深度
@@ -163,7 +170,7 @@ def plotTree(myTree, parentPt, nodeTxt):
     plotTree.yOff = plotTree.yOff + 1.0 / plotTree.totalD
 
 
-# 绘制决策树
+# 创建决策树画板
 def createPlot(inTree):
     fig = plt.figure(figsize=(12, 8), facecolor='white')  # 创建画布
     fig.clf()  # 清屏
@@ -182,8 +189,8 @@ def createPlot(inTree):
 
 # 验证数据集
 def classify(myTree, featLabels, testVec):
-    firstStr = next(iter(myTree))
-    secondDict = myTree[firstStr]
+    firstStr = next(iter(myTree))       #获取决策树结点
+    secondDict = myTree[firstStr]          #下一个字典
     featIndex = featLabels.index(firstStr)
     classLabel = 'p'
     for key in secondDict.keys():
@@ -196,11 +203,12 @@ def classify(myTree, featLabels, testVec):
 
 
 def modelTest(myTree, featLabels):
+    # 取后109个数据作为测试集
     data = pd.read_csv("./diabetes_data_upload1.csv")
     data = data[:][411:]
     classList = [data['class'][i+411] for i in range(data.shape[0])]
     # print(data)
-    testVec = []
+    testVec = []      #存储测试数据对应的featLabels属性集的值
     for (j) in range(data.shape[0]):
         mod = []
         for i in featLabels:
@@ -208,11 +216,11 @@ def modelTest(myTree, featLabels):
         testVec.append(mod)
     result = []
     count = 0
-    for i in range(109):
+    for i in range(109):        #验证数据
         res = classify(myTree, featLabels, testVec[i])
         if res != classList[i]:
             count += 1
-    print("模型准确率：%.4f" %((109-count)/float(109)))
+    print("模型准确率：%.4f" %((109-count)/float(109)))     # 计算模型准确率
 
 if __name__ == '__main__':
     # 获取数据集
