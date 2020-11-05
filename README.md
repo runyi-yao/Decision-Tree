@@ -1,5 +1,5 @@
 ## - 利用ID3决策树预测患糖尿病的可能性
-###关于患糖尿病可能性的预测
+### 关于患糖尿病可能性的预测
 
   1.主要实验流程
   
@@ -14,3 +14,6 @@
    createPlot(myTree)
    #### 模型测试
    modelTest(myTree, featLabels)
+
+
+代码参考:https://github.com/Jack-Cherish/Machine-Learning/blob/master/Decision%20Tree/Decision%20Tree.py
